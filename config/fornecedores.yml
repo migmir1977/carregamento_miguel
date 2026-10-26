@@ -1,0 +1,57 @@
+# Fornecedores de energia (comercializadores) e Tarifas de Acesso às Redes (TAR).
+# Todos os valores em €/kWh SEM IVA, exceto "preco_final", que já é o preço total com IVA
+# e substitui também o preço do posto.
+# Se este ficheiro não existir, a página mostra só o preço do posto.
+
+defeito: enable          # fornecedor selecionado na primeira visita
+
+# TAR por nível de tensão. Regra atual: AC usa BT, DC usa MT (ver "tensao" em site.yml).
+tar:
+  BT: {vazio: 0.0266, cheia: 0.1192}
+  MT: {vazio: 0.0157, cheia: 0.0812}
+
+# Horários de VAZIO de cada ciclo (o resto é cheia). Hora legal de Portugal.
+# Intervalos "HH:MM-HH:MM"; podem passar a meia-noite (ex. 22:00-08:00).
+# Dias: uteis, sabado, domingo. "todos" aplica-se a todos os dias.
+# Estações: verao e inverno seguem a hora legal (muda no último domingo de março e de outubro).
+ciclos:
+  diario:
+    nome: Bi-horário, ciclo diário
+    vazio:
+      todos: ["22:00-08:00"]
+  semanal:
+    nome: Bi-horário, ciclo semanal
+    vazio:
+      verao:
+        uteis:   ["00:00-07:00"]
+        sabado:  ["00:00-09:00", "14:00-20:00", "22:00-24:00"]
+        domingo: ["00:00-24:00"]
+      inverno:
+        uteis:   ["00:00-07:00"]
+        sabado:  ["00:00-09:30", "13:00-18:30", "22:00-24:00"]
+        domingo: ["00:00-24:00"]
+  simples:
+    nome: Simples (mesmo preço a qualquer hora)
+
+# Para cada fornecedor:
+#   ciclo: diario | semanal | simples
+#   AC / DC: energia (€/kWh sem IVA) e inclui_tar (true se o preço já inclui a TAR),
+#            ou preco_final (€/kWh com tudo incluído, posto e IVA).
+fornecedores:
+  - id: enable
+    nome: Enable
+    ciclo: diario
+    AC: {energia: 0.10}
+    DC: {energia: 0.10}
+
+  - id: meo
+    nome: MEO Energia
+    ciclo: simples
+    AC: {energia: 0.19, inclui_tar: true}
+    DC: {energia: 0.19, inclui_tar: true}
+
+  - id: atlante
+    nome: Atlante
+    ciclo: semanal
+    AC: {energia: 0.12}
+    DC: {preco_final: 0.55}
