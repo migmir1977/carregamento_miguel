@@ -1,7 +1,8 @@
 # carregamento_miguel
 
 Página com os preços de carregamento nos postos públicos da rede MOBI.E, agrupados em perfis de preço,
-com o preço final para cada fornecedor de energia (Enable, MEO Energia, Atlante).
+com o preço final para cada fornecedor de energia (Enable, MEO Energia, Atlante) e os postos
+da rede própria do Continente.
 
 Publicada pelo GitHub Pages a partir do `index.html` na raiz do ramo `main`.
 
@@ -42,4 +43,6 @@ python scripts/build.py           # gera index.html
 
 - `data/tarifas.csv`: ficheiro "Descarregar Tarifas" da MOBI.E.
 - `data/coords.csv`: coordenadas extraídas do feed DATEX II do Ponto de Acesso Nacional (`site_id`, identificadores, `lat`, `lon`).
+- `data/redes.csv`: postos dos fornecedores com rede própria (campo `rede` em `config/fornecedores.yml`, ex. CNT = Continente),
+  extraídos do mesmo feed, uma linha por tomada (tipo, potência, morada, coordenadas). Estes postos não estão no ficheiro de tarifas.
 - `data/meta.json`: datas e origem dos dados.

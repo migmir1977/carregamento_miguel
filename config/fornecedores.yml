@@ -55,3 +55,17 @@ fornecedores:
     ciclo: semanal
     AC: {energia: 0.12}
     DC: {preco_final: 0.55}
+
+  # Fornecedor com rede própria: só funciona nos postos do operador indicado em "rede"
+  # (que não estão no ficheiro de tarifas da MOBI.E e só aceitam este fornecedor).
+  # Os postos vêm do feed DATEX II (data/redes.csv). Preços finais, com IVA.
+  # "escaloes": preço diferente a partir de uma potência (ex. ultrarrápidos).
+  - id: continente
+    nome: Continente
+    rede: CNT
+    ciclo: simples
+    AC: {preco_final: 0.35}            # normais: 7,4 e 22 kW
+    DC:
+      preco_final: 0.41                # rápidos: 50 e 120 kW
+      escaloes:
+        - {acima_de_kw: 150, preco_final: 0.45}   # ultrarrápidos: 240 e 350 kW

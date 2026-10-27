@@ -71,6 +71,8 @@ regras:
 #   ignorar_apos_30: ignora mudanças de preço que começam aos 30 min ou depois
 #   tensao: BT ou MT (TAR aplicada quando se escolhe um fornecedor)
 #   extra: segunda sessão mostrada como coluna adicional
+#   redes_potencia: intervalo de potência (pot_min/pot_max/pot_acima_de) só para os postos
+#                   de redes próprias (ex. Continente); por omissão usa o do cenário
 cenarios:
   - id: AC
     separador: AC 10 kWh em 1 h
@@ -83,6 +85,8 @@ cenarios:
     minutos: 60
     tensao: BT
     extra: {rotulo: 2 h, kwh: 20, minutos: 120}
+    # Postos de redes próprias (Continente): também os de 7,4 kW, porque o preço é só por kWh.
+    redes_potencia: {pot_min: 7, pot_max: 23}
 
   - id: AC4
     separador: AC lento 10 kWh
