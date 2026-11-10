@@ -1,4 +1,4 @@
-# TEMPORÁRIO: procura a API de dados usada pelo mapa data.mobie.pt (só escreve no registo).
+# TEMPORÁRIO: inspeciona os ficheiros de dados de data.mobie.pt (só escreve no registo).
 name: Procurar link de tarifas (temporário)
 
 on:
@@ -9,38 +9,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Procurar
+      - name: Inspecionar
         run: |
           python3 - <<'EOF'
-          import re, urllib.request, urllib.parse
-          UA = {"User-Agent": "Mozilla/5.0"}
+          import json, urllib.request
+          UA = {"User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"}
           def get(u):
+              with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=120) as r:
+                  return r.status, dict(r.headers), r.read()
+          def shape(x, depth=0, maxd=4):
+              p = "  " * depth
+              if isinstance(x, dict):
+                  for k, v in list(x.items())[:25]:
+                      if isinstance(v, (dict, list)):
+                          print(f"{p}{k}: {type(v).__name__}({len(v)})"); 
+                          if depth < maxd: shape(v, depth + 1, maxd)
+                      else:
+                          print(f"{p}{k}: {json.dumps(v, ensure_ascii=False)[:120]}")
+              elif isinstance(x, list) and x:
+                  print(f"{p}[0] de {len(x)}:"); shape(x[0], depth + 1, maxd)
+          for path in ["/data/tariffs.json", "/data/stations.json"]:
               try:
-                  with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60) as r:
-                      return r.geturl(), r.status, r.headers.get("Content-Type"), r.read()
+                  code, h, b = get("https://data.mobie.pt" + path)
               except Exception as e:
-                  return u, None, f"ERRO {e}", b""
-          base = "https://data.mobie.pt"
-          _, _, _, b = get(base + "/mapas/encontrar-posto")
-          t = b.decode("utf-8", "replace")
-          scripts = sorted(set(re.findall(r'(/_next/static/[^"\'\s\\]+\.js)', t)))
-          print("scripts:", len(scripts))
-          found = set()
-          for s in scripts:
-              _, _, _, sb = get(base + s)
-              st = sb.decode("utf-8", "replace")
-              for m in re.findall(r'["\'`](/api/[^"\'`\s]{1,120}|https?://[a-z0-9.-]*mobie\.pt/[^"\'`\s]{1,120})["\'`]', st):
-                  found.add(m)
-              for m in re.finditer(r'.{0,120}(?:tariff|tarif|prices|/api/).{0,160}', st):
-                  x = m.group(0)
-                  if "fetch" in x or "/api/" in x:
-                      print(f"[{s.rsplit('/',1)[-1]}] …", x[:300].replace("\n"," "))
-          print("\nendpoints encontrados:")
-          for f in sorted(found): print("  ", f)
-          # tentar endpoints prováveis
-          for f in sorted(found):
-              if f.startswith("/api/") and "{" not in f and "$" not in f:
-                  u, code, ct, body = get(base + f)
-                  print(f"\nGET {f} -> {code} {ct} {len(body)} bytes")
-                  print("   ", body[:600].decode("utf-8","replace").replace("\n"," "))
+                  print(f"\n### {path}: ERRO {e}"); continue
+              print(f"\n### {path}: {code} {h.get('Content-Type')} {len(b)} bytes · Last-Modified: {h.get('Last-Modified')} · ETag: {h.get('ETag')}")
+              try:
+                  d = json.loads(b)
+              except Exception as e:
+                  print("não é JSON:", e, b[:300]); continue
+              shape(d)
+              # amostra completa de um elemento com tarifas
+              s = json.dumps(d, ensure_ascii=False)
+              i = s.find('"tariff')
+              print("\n   excerto:", s[max(0, i-300):i+1500] if i >= 0 else s[:1500])
           EOF
