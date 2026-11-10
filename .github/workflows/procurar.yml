@@ -20,8 +20,8 @@ jobs:
                       return r.geturl(), r.headers.get("Content-Type"), r.read()
               except Exception as e:
                   return u, f"ERRO {e}", b""
-          pages = ["https://www.mobie.pt/", "https://www.mobie.pt/informacao-institucional",
-                   "https://www.mobie.pt/sitemap.xml"]
+          pages = ["https://www.mobie.pt/mapa-de-postos", "https://www.mobie.pt/portal-de-dados-mobi.e",
+                   "https://www.mobie.pt/portal-de-dados-mobi.e/mobi.data"]
           seen = set()
           for p in pages:
               url, ct, body = get(p)
@@ -29,16 +29,16 @@ jobs:
               print(f"\n=== {p} -> {url} [{ct}] {len(body)} bytes")
               links = set(re.findall(r'(?:href|src|url)=["\']([^"\']+)', t)) | set(re.findall(r'https?://[^\s"\'<>)]+', t))
               for l in sorted(links):
-                  if re.search(r"tarif|\.csv|\.xlsx|document|dados|download|ficheiro|framerusercontent\.com/assets", l, re.I):
+                  if not re.search(r"\.(woff2?|png|jpe?g|svg|webp|mjs|js|css|ico)(\?|$)|fonts\.|/noticias-e-imprensa/", l, re.I):
                       if l not in seen:
                           seen.add(l); print("  ", l)
-              for m in re.finditer(r".{0,150}[Tt]arifas.{0,150}", re.sub(r"<[^>]+>", " ", t)):
+              for m in re.finditer(r".{0,150}(?:[Tt]arif|[Dd]escarregar|[Dd]ownload|CSV|csv).{0,150}", re.sub(r"<[^>]+>", " ", t)):
                   s = re.sub(r"\s+", " ", m.group(0))
                   if len(s) > 40: print("   …", s[:300])
               if p.endswith("sitemap.xml"):
                   for l in re.findall(r"<loc>([^<]+)</loc>", t):
                       print("   sitemap:", l)
-              for idx in re.findall(r'content="(https://framerusercontent\.com/sites/[^"]+searchIndex[^"]+\.json)"', t)[:1]:
+              for idx in [] and re.findall(r'content="(https://framerusercontent\.com/sites/[^"]+searchIndex[^"]+\.json)"', t)[:1]:
                   _, _, ib = get(idx)
                   it = ib.decode("utf-8", "replace")
                   print(f"\n=== índice de pesquisa {idx} ({len(ib)} bytes)")
