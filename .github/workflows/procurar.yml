@@ -1,4 +1,4 @@
-# TEMPORÁRIO: procura o novo link do ficheiro de tarifas no site novo da MOBI.E (só escreve no registo).
+# TEMPORÁRIO: procura a API de dados usada pelo mapa data.mobie.pt (só escreve no registo).
 name: Procurar link de tarifas (temporário)
 
 on:
@@ -12,41 +12,35 @@ jobs:
       - name: Procurar
         run: |
           python3 - <<'EOF'
-          import re, urllib.request, json
+          import re, urllib.request, urllib.parse
           UA = {"User-Agent": "Mozilla/5.0"}
           def get(u):
               try:
                   with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60) as r:
-                      return r.geturl(), r.headers.get("Content-Type"), r.read()
+                      return r.geturl(), r.status, r.headers.get("Content-Type"), r.read()
               except Exception as e:
-                  return u, f"ERRO {e}", b""
-          pages = ["https://docs.mobie.pt/", "https://docs.mobie.pt/sitemap.xml", "https://docs.mobie.pt/llms.txt",
-                   "https://data.mobie.pt/", "https://data.mobie.pt/mapas/encontrar-posto/embed",
-                   "https://data.mobie.pt/sitemap.xml", "https://data.mobie.pt/robots.txt"]
-          seen = set()
-          for p in pages:
-              url, ct, body = get(p)
-              t = body.decode("utf-8", "replace")
-              print(f"\n=== {p} -> {url} [{ct}] {len(body)} bytes")
-              links = set(re.findall(r'(?:href|src|url)=["\']([^"\']+)', t)) | set(re.findall(r'https?://[^\s"\'<>)]+', t))
-              for l in sorted(links):
-                  if not re.search(r"\.(woff2?|png|jpe?g|svg|webp|mjs|js|css|ico)(\?|$)|fonts\.|/noticias-e-imprensa/", l, re.I):
-                      if l not in seen:
-                          seen.add(l); print("  ", l)
-              for m in re.finditer(r".{0,150}(?:[Tt]arif|[Dd]escarregar|[Dd]ownload|CSV|csv).{0,150}", re.sub(r"<[^>]+>", " ", t)):
-                  s = re.sub(r"\s+", " ", m.group(0))
-                  if len(s) > 40: print("   …", s[:300])
-              if p.endswith((".txt",)):
-                  print(t[:4000])
-              if p.endswith("sitemap.xml"):
-                  for l in re.findall(r"<loc>([^<]+)</loc>", t):
-                      print("   sitemap:", l)
-              for idx in [] and re.findall(r'content="(https://framerusercontent\.com/sites/[^"]+searchIndex[^"]+\.json)"', t)[:1]:
-                  _, _, ib = get(idx)
-                  it = ib.decode("utf-8", "replace")
-                  print(f"\n=== índice de pesquisa {idx} ({len(ib)} bytes)")
-                  for l in sorted(set(re.findall(r'https?://[^\s"\\<>]+', it))):
-                      if re.search(r"tarif|\.csv|\.xlsx|assets", l, re.I): print("  ", l)
-                  for m in re.finditer(r".{0,120}[Tt]arifas.{0,200}", it):
-                      print("   …", re.sub(r"\s+", " ", m.group(0))[:320])
+                  return u, None, f"ERRO {e}", b""
+          base = "https://data.mobie.pt"
+          _, _, _, b = get(base + "/mapas/encontrar-posto")
+          t = b.decode("utf-8", "replace")
+          scripts = sorted(set(re.findall(r'(/_next/static/[^"\'\s\\]+\.js)', t)))
+          print("scripts:", len(scripts))
+          found = set()
+          for s in scripts:
+              _, _, _, sb = get(base + s)
+              st = sb.decode("utf-8", "replace")
+              for m in re.findall(r'["\'`](/api/[^"\'`\s]{1,120}|https?://[a-z0-9.-]*mobie\.pt/[^"\'`\s]{1,120})["\'`]', st):
+                  found.add(m)
+              for m in re.finditer(r'.{0,120}(?:tariff|tarif|prices|/api/).{0,160}', st):
+                  x = m.group(0)
+                  if "fetch" in x or "/api/" in x:
+                      print(f"[{s.rsplit('/',1)[-1]}] …", x[:300].replace("\n"," "))
+          print("\nendpoints encontrados:")
+          for f in sorted(found): print("  ", f)
+          # tentar endpoints prováveis
+          for f in sorted(found):
+              if f.startswith("/api/") and "{" not in f and "$" not in f:
+                  u, code, ct, body = get(base + f)
+                  print(f"\nGET {f} -> {code} {ct} {len(body)} bytes")
+                  print("   ", body[:600].decode("utf-8","replace").replace("\n"," "))
           EOF
