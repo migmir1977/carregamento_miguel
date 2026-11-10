@@ -27,7 +27,18 @@ def main():
 
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
         tmp.write(body)
-    novo = read_tarifas(tmp.name)
+    try:
+        novo = read_tarifas(tmp.name)
+    except Exception as e:
+        # mostra no registo o que a MOBI.E devolveu, para diagnóstico
+        print(f"O ficheiro descarregado não é um CSV de tarifas válido: {e}")
+        print(f"Estado HTTP: {r.status_code} · Content-Type: {r.headers.get('Content-Type')} · "
+              f"Tamanho: {len(body)} bytes · URL final: {r.url}")
+        if r.history:
+            print("Redirecionamentos: " + " -> ".join(f"{h.status_code} {h.url}" for h in r.history))
+        print("Primeiras linhas:")
+        print(body[:3000].decode("utf-8", errors="replace"))
+        raise SystemExit(1)
     n_novo = novo["UID_TOMADA"].nunique()
 
     n_ant = read_tarifas()["UID_TOMADA"].nunique() if TARIFAS.exists() else 0
