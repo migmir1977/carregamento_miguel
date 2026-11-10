@@ -12,35 +12,35 @@ jobs:
       - name: Inspecionar
         run: |
           python3 - <<'EOF'
-          import json, urllib.request
-          UA = {"User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"}
-          def get(u):
-              with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=120) as r:
-                  return r.status, dict(r.headers), r.read()
-          def shape(x, depth=0, maxd=4):
-              p = "  " * depth
-              if isinstance(x, dict):
-                  for k, v in list(x.items())[:25]:
-                      if isinstance(v, (dict, list)):
-                          print(f"{p}{k}: {type(v).__name__}({len(v)})"); 
-                          if depth < maxd: shape(v, depth + 1, maxd)
-                      else:
-                          print(f"{p}{k}: {json.dumps(v, ensure_ascii=False)[:120]}")
-              elif isinstance(x, list) and x:
-                  print(f"{p}[0] de {len(x)}:"); shape(x[0], depth + 1, maxd)
-          for path in ["/data/tariffs.json", "/data/stations.json"]:
-              try:
-                  code, h, b = get("https://data.mobie.pt" + path)
-              except Exception as e:
-                  print(f"\n### {path}: ERRO {e}"); continue
-              print(f"\n### {path}: {code} {h.get('Content-Type')} {len(b)} bytes · Last-Modified: {h.get('Last-Modified')} · ETag: {h.get('ETag')}")
-              try:
-                  d = json.loads(b)
-              except Exception as e:
-                  print("não é JSON:", e, b[:300]); continue
-              shape(d)
-              # amostra completa de um elemento com tarifas
-              s = json.dumps(d, ensure_ascii=False)
-              i = s.find('"tariff')
-              print("\n   excerto:", s[max(0, i-300):i+1500] if i >= 0 else s[:1500])
+          import json, urllib.request, collections as C
+          get = lambda p: json.loads(urllib.request.urlopen(urllib.request.Request("https://data.mobie.pt" + p, headers={"User-Agent": "Mozilla/5.0"}), timeout=120).read())
+          T = get("/data/tariffs.json"); S = get("/data/stations.json")
+          st = S["stations"]
+          print("conectores:", C.Counter(s2["connector"] for s in st for s2 in s["sockets"]))
+          print("powerClass:", C.Counter(s.get("powerClass") for s in st))
+          print("mobieNetwork:", C.Counter(s.get("mobieNetwork") for s in st))
+          print("chaves de posto:", sorted({k for s in st for k in s}))
+          print("chaves de tomada:", sorted({k for s in st for s2 in s["sockets"] for k in s2}))
+          print("partyId fora da rede MOBI.E:", C.Counter(s["partyId"] for s in st if not s.get("mobieNetwork")).most_common(15))
+          print("partyId (top):", C.Counter(s["partyId"] for s in st).most_common(12))
+          el = [e for s in T["sets"] for e in s]
+          print("planos:", C.Counter(e["plan"] for e in el), "unidades:", C.Counter(e["unit"] for e in el))
+          print("after:", sorted(C.Counter(e["after"] for e in el).items(), key=lambda x: str(x[0]))[:25])
+          print("until:", sorted(C.Counter(e["until"] for e in el).items(), key=lambda x: str(x[0]))[:25])
+          print("chaves de elemento:", sorted({k for e in el for k in e}))
+          byname = {s["name"]: s for s in st}
+          print("postos com tarifas:", len(T["stations"]), "| sem correspondência em stations.json:", sum(1 for n in T["stations"] if n not in byname))
+          # mapeamento tomada -> evse
+          n = 0
+          for name, m in T["stations"].items():
+              s = byname.get(name)
+              if not s: continue
+              if n < 6 or len(m) != len(s["sockets"]):
+                  if n < 12:
+                      print(name, "tarifas:", m, "| evse:", [(x["evse"], x["connector"], x["kw"]) for x in s["sockets"]])
+                  n += 1
+          print("postos com nº de tomadas diferente:", sum(1 for name, m in T["stations"].items() if name in byname and len(m) != len(byname[name]["sockets"])))
+          print("exemplo com condições:", [s for s in T["sets"] if any(e["after"] or e["until"] for e in s)][:3])
+          cnt = [s for s in st if s["partyId"] == "CNT"]
+          print("CNT em stations.json:", len(cnt), cnt[:1])
           EOF
