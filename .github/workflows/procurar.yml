@@ -1,0 +1,49 @@
+# TEMPORÁRIO: procura o novo link do ficheiro de tarifas no site novo da MOBI.E (só escreve no registo).
+name: Procurar link de tarifas (temporário)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  procurar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Procurar
+        run: |
+          python3 - <<'EOF'
+          import re, urllib.request, json
+          UA = {"User-Agent": "Mozilla/5.0"}
+          def get(u):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60) as r:
+                      return r.geturl(), r.headers.get("Content-Type"), r.read()
+              except Exception as e:
+                  return u, f"ERRO {e}", b""
+          pages = ["https://www.mobie.pt/", "https://www.mobie.pt/informacao-institucional",
+                   "https://www.mobie.pt/sitemap.xml"]
+          seen = set()
+          for p in pages:
+              url, ct, body = get(p)
+              t = body.decode("utf-8", "replace")
+              print(f"\n=== {p} -> {url} [{ct}] {len(body)} bytes")
+              links = set(re.findall(r'(?:href|src|url)=["\']([^"\']+)', t)) | set(re.findall(r'https?://[^\s"\'<>)]+', t))
+              for l in sorted(links):
+                  if re.search(r"tarif|\.csv|\.xlsx|document|dados|download|ficheiro|framerusercontent\.com/assets", l, re.I):
+                      if l not in seen:
+                          seen.add(l); print("  ", l)
+              for m in re.finditer(r".{0,150}[Tt]arifas.{0,150}", re.sub(r"<[^>]+>", " ", t)):
+                  s = re.sub(r"\s+", " ", m.group(0))
+                  if len(s) > 40: print("   …", s[:300])
+              if p.endswith("sitemap.xml"):
+                  for l in re.findall(r"<loc>([^<]+)</loc>", t):
+                      print("   sitemap:", l)
+              for idx in re.findall(r'content="(https://framerusercontent\.com/sites/[^"]+searchIndex[^"]+\.json)"', t)[:1]:
+                  _, _, ib = get(idx)
+                  it = ib.decode("utf-8", "replace")
+                  print(f"\n=== índice de pesquisa {idx} ({len(ib)} bytes)")
+                  for l in sorted(set(re.findall(r'https?://[^\s"\\<>]+', it))):
+                      if re.search(r"tarif|\.csv|\.xlsx|assets", l, re.I): print("  ", l)
+                  for m in re.finditer(r".{0,120}[Tt]arifas.{0,200}", it):
+                      print("   …", re.sub(r"\s+", " ", m.group(0))[:320])
+          EOF
