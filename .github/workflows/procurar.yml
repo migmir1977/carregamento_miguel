@@ -21,11 +21,14 @@ jobs:
           print("exemplos sem correspondência:", un[:25])
           print("estão no campo id?", sum(1 for n in un if n in byid))
           import re
-          pat = C.Counter(re.sub(r"\d", "9", n) for n in un); print("padrões:", pat.most_common(10))
-          pat2 = C.Counter(re.sub(r"\d", "9", s["name"]) for s in st); print("padrões stations.json:", pat2.most_common(10))
-          nt = set(T["stations"]); sem = [s["name"] for s in st if s["name"] not in nt and s.get("mobieNetwork")]
-          print("postos MOBI.E sem tarifas:", len(sem), sem[:15])
-          for n in un[:3]:
-              cand = [s for s in st if n.split("-")[-1] in s["name"]][:3]
-              print(n, "->", [(c["name"], c["id"], c["partyId"], c["municipality"]) for c in cand])
+          nn = [s for s in st if not s.get("name")]
+          print("postos sem name:", len(nn), "exemplos:", [(s["id"], s.get("partyId"), [x["evse"] for x in s["sockets"]][:3]) for s in nn[:6]])
+          pref = {}
+          for s in st:
+              for x in s["sockets"]:
+                  m = re.match(r"^(.*?)[-.](\d+)$", x.get("evse") or "")
+                  if m: pref.setdefault(m.group(1), s)
+          print("correspondência pelo prefixo do evse:", sum(1 for n in T["stations"] if n in byname or n in pref), "de", len(T["stations"]))
+          un2 = [n for n in T["stations"] if n not in byname and n not in pref]
+          print("ainda sem correspondência:", len(un2), un2[:20])
           EOF
